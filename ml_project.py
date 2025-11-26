@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.preprocessing import StandardScaler
 from sklearn.naive_bayes import GaussianNB
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.neural_network import MLPClassifier
@@ -11,100 +11,76 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 import warnings
 warnings.filterwarnings('ignore')
 
-# Set style for visualizations
 plt.style.use('seaborn-v0_8-darkgrid')
 sns.set_palette("husl")
 
 
-# ============================================================================
-# 1. DATA UNDERSTANDING
-# ============================================================================
-
 def load_and_explore_data():
-    """
-    Load the Heart Disease dataset and perform initial exploration.
+    """Load and explore the heart disease dataset"""
+    print("=" * 60)
+    print("Loading Heart Disease Dataset...")
+    print("=" * 60)
     
-    Dataset Source: Kaggle - Heart Disease Dataset
-    Context: Predict heart disease presence based on medical attributes
-    Samples: 303 samples
-    Features: 13 medical/clinical features + 1 target (disease presence)
-    """
-    print("=" * 80)
-    print("1. DATA UNDERSTANDING")
-    print("=" * 80)
-    
-    # Load dataset from local CSV file
     df = pd.read_csv('heart.csv')
     
-    print("\n📊 Dataset Information:")
-    print(f"Source: Kaggle/UCI - Heart Disease Dataset")
-    print(f"File: heart.csv (local file)")
-    print(f"Context: Predict heart disease presence based on medical attributes")
-    print(f"Problem Type: Binary Classification")
-    print(f"\nShape: {df.shape[0]} samples, {df.shape[1]} columns")
-    
-    print("\n📋 Dataset Preview:")
+    print(f"\nDataset shape: {df.shape[0]} rows, {df.shape[1]} columns")
+    print("\nFirst few rows:")
     print(df.head(10))
     
-    print("\n📈 Summary Statistics:")
+    print("\nBasic statistics:")
     print(df.describe())
     
-    print("\n🔍 Data Types and Missing Values:")
+    print("\nData types and missing values:")
     print(df.info())
     
-    print("\n🎯 Target Variable Distribution:")
-    print("Note: Target values 0 (no disease) and 1-4 (disease present)")
+    print("\nTarget distribution:")
     print(df['target'].value_counts().sort_index())
     
     return df
 
 
 def visualize_data(df):
-    """Create comprehensive visualizations for data understanding."""
-    print("\n" + "=" * 80)
-    print("Creating Data Visualizations...")
-    print("=" * 80)
+    """Create visualizations for data exploration"""
+    print("\nGenerating visualizations...")
     
-    # Create figure with multiple subplots
     fig = plt.figure(figsize=(20, 12))
     
-    # 1. Target distribution
+    # Target distribution
     plt.subplot(3, 4, 1)
     df['target'].value_counts().sort_index().plot(kind='bar', color='skyblue')
-    plt.title('Heart Disease Distribution', fontsize=12, fontweight='bold')
-    plt.xlabel('Disease Status (0=No, 1-4=Yes)')
+    plt.title('Disease Distribution')
+    plt.xlabel('Status')
     plt.ylabel('Count')
     plt.xticks(rotation=0)
     
-    # 2-5. Feature distributions
+    # Feature distributions
     features = ['age', 'trestbps', 'chol', 'thalach']
     for idx, feature in enumerate(features, 2):
         plt.subplot(3, 4, idx)
         plt.hist(df[feature], bins=30, color='lightcoral', edgecolor='black', alpha=0.7)
-        plt.title(f'{feature.title()} Distribution', fontsize=10)
+        plt.title(f'{feature.title()} Distribution')
         plt.xlabel(feature.title())
         plt.ylabel('Frequency')
     
-    # 6. Correlation heatmap
+    # Correlation with target
     plt.subplot(3, 4, 6)
     correlation = df.corr()
     sns.heatmap(correlation[['target']].sort_values(by='target', ascending=False).head(6),
                 annot=True, cmap='coolwarm', fmt='.2f', linewidths=0.5)
-    plt.title('Top Features Correlated with Disease', fontsize=10)
+    plt.title('Correlation with Target')
     
-    # 7-10. Box plots for key features
+    # Box plots
     key_features = ['age', 'trestbps', 'chol', 'thalach']
     for idx, feature in enumerate(key_features, 7):
         plt.subplot(3, 4, idx)
         df.boxplot(column=feature, by='target', ax=plt.gca())
-        plt.title(f'{feature.title()} by Disease', fontsize=10)
+        plt.title(f'{feature.title()} by Disease')
         plt.suptitle('')
         plt.xlabel('Disease Status')
         plt.ylabel(feature.title())
     
-    # 11. Pairplot for selected features (scatter)
+    # Scatter plot
     plt.subplot(3, 4, 11)
-    # Create binary target for visualization
     df_temp = df.copy()
     df_temp['disease_binary'] = (df_temp['target'] > 0).astype(int)
     for disease in [0, 1]:
@@ -113,56 +89,45 @@ def visualize_data(df):
                    label=f'Disease: {"Yes" if disease else "No"}', alpha=0.5)
     plt.xlabel('Age')
     plt.ylabel('Max Heart Rate')
-    plt.title('Age vs Max Heart Rate by Disease', fontsize=10)
+    plt.title('Age vs Heart Rate')
     plt.legend()
     
-    # 12. Missing values heatmap
+    # Missing values check
     plt.subplot(3, 4, 12)
     missing = df.isnull().sum()
     plt.bar(range(len(missing)), missing.values)
-    plt.title('Missing Values per Feature', fontsize=10)
+    plt.title('Missing Values')
     plt.xlabel('Feature Index')
-    plt.ylabel('Missing Count')
+    plt.ylabel('Count')
     
     plt.tight_layout()
     plt.savefig('c:/Users/aliom/Intro_to_ai/data_exploration.png', dpi=300, bbox_inches='tight')
     plt.show()
-    print("✅ Visualizations saved as 'data_exploration.png'")
+    print("Saved data_exploration.png")
 
-
-# ============================================================================
-# 2. DATA PREPROCESSING
-# ============================================================================
 
 def preprocess_data(df):
-    """
-    Comprehensive data preprocessing including:
-    - Missing value handling
-    - Outlier detection and treatment
-    - Feature engineering
-    - Encoding and scaling
-    """
-    print("\n" + "=" * 80)
-    print("2. DATA PREPROCESSING")
-    print("=" * 80)
+    """Handle missing values, outliers, and feature engineering"""
+    print("\n" + "=" * 60)
+    print("Preprocessing Data...")
+    print("=" * 60)
     
     df_processed = df.copy()
     
-    # Check for missing values
-    print("\n🔍 Checking for Missing Values:")
+    # Check missing values
+    print("\nChecking for missing values...")
     missing_values = df_processed.isnull().sum()
     if missing_values.sum() > 0:
         print(missing_values[missing_values > 0])
-        print(f"\nHandling missing values using median imputation...")
         for col in df_processed.columns:
             if df_processed[col].isnull().sum() > 0:
                 df_processed[col].fillna(df_processed[col].median(), inplace=True)
-        print("✅ Missing values imputed!")
+        print("Missing values handled with median imputation")
     else:
-        print("No missing values found!")
+        print("No missing values")
     
-    # Handle outliers using IQR method
-    print("\n🎯 Handling Outliers (IQR Method):")
+    # Remove outliers using IQR
+    print("\nHandling outliers...")
     numerical_features = df_processed.select_dtypes(include=[np.number]).columns.tolist()
     numerical_features.remove('target')
     
@@ -178,109 +143,61 @@ def preprocess_data(df):
                                (df_processed[feature] > upper_bound)]
         outlier_counts[feature] = len(outliers)
         
-        # Cap outliers instead of removing them (preserves data)
         df_processed[feature] = df_processed[feature].clip(lower_bound, upper_bound)
     
-    print(f"Outliers capped for {len([v for v in outlier_counts.values() if v > 0])} features")
+    print(f"Capped outliers in {len([v for v in outlier_counts.values() if v > 0])} features")
     
-    # Feature Engineering
-    print("\n🔧 Feature Engineering:")
-    
-    # 1. Create interaction features
+    # Create new features
+    print("\nCreating new features...")
     df_processed['age_thalach'] = df_processed['age'] * df_processed['thalach']
     df_processed['bp_chol_ratio'] = df_processed['trestbps'] / (df_processed['chol'] + 0.001)
     df_processed['age_squared'] = df_processed['age'] ** 2
     df_processed['exercise_heart_ratio'] = df_processed['exang'] * df_processed['thalach']
     
-    print("Created 4 new engineered features:")
-    print("  - age_thalach (age × max heart rate)")
-    print("  - bp_chol_ratio (blood pressure / cholesterol)")
-    print("  - age_squared (age²)")
-    print("  - exercise_heart_ratio (exercise angina × heart rate)")
-    
-    # Convert to binary classification for better model performance
-    print("\n🏷️  Encoding Target Variable:")
-    print("Converting multi-class to binary classification:")
-    print("  - Target = 0: 'No Disease' (0)")
-    print("  - Target > 0: 'Disease Present' (1)")
-    
+    # Convert to binary classification
+    print("\nConverting target to binary (0 = no disease, 1 = disease)...")
     df_processed['disease_binary'] = (df_processed['target'] > 0).astype(int)
-    print(f"\nClass Distribution:")
-    print(df_processed['disease_binary'].value_counts())
+    print(f"Class distribution:\n{df_processed['disease_binary'].value_counts()}")
     
-    # Separate features and target
     X = df_processed.drop(['target', 'disease_binary'], axis=1)
     y = df_processed['disease_binary']
     
-    # Feature Scaling
-    print("\n⚖️  Feature Scaling (Standardization):")
+    # Scaling
+    print("\nScaling features...")
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     X_scaled = pd.DataFrame(X_scaled, columns=X.columns)
     
-    print(f"Scaled {X_scaled.shape[1]} features using StandardScaler")
-    print(f"Mean: ~0, Std: ~1 for all features")
-    
-    print("\n✅ Preprocessing Complete!")
-    print(f"Final Dataset Shape: {X_scaled.shape}")
-    print(f"Features: {X_scaled.shape[1]}, Samples: {X_scaled.shape[0]}")
+    print(f"\nPreprocessing done. Final shape: {X_scaled.shape}")
     
     return X_scaled, y, scaler
 
 
-# ============================================================================
-# 3. MODEL DEVELOPMENT
-# ============================================================================
-
 def build_and_train_models(X_train, X_test, y_train, y_test):
-    """
-    Build and train three machine learning models:
-    1. Naive Bayes (Gaussian)
-    2. Decision Tree
-    3. Artificial Neural Network (MLP)
-    """
-    print("\n" + "=" * 80)
-    print("3. MODEL DEVELOPMENT")
-    print("=" * 80)
+    """Train three different models"""
+    print("\n" + "=" * 60)
+    print("Training Models...")
+    print("=" * 60)
     
     models = {}
     
-    # Model 1: Naive Bayes
-    print("\n🤖 Model 1: Gaussian Naive Bayes")
-    print("Justification:")
-    print("  - Fast and efficient for baseline classification")
-    print("  - Commonly used in medical diagnosis systems")
-    print("  - Works well with continuous medical measurements")
-    print("  - Probabilistic approach provides risk probability estimates")
-    
+    # Naive Bayes
+    print("\nTraining Naive Bayes...")
     nb_model = GaussianNB()
     nb_model.fit(X_train, y_train)
     models['Naive Bayes'] = nb_model
-    print("✅ Training complete!")
+    print("Done")
     
-    # Model 2: Decision Tree
-    print("\n🌳 Model 2: Decision Tree Classifier")
-    print("Justification:")
-    print("  - Non-linear decision boundaries (captures complex medical patterns)")
-    print("  - Interpretable rules (doctors can understand decision logic)")
-    print("  - No assumptions about data distribution")
-    print("  - Handles interactions between medical features naturally")
-    
+    # Decision Tree
+    print("\nTraining Decision Tree...")
     dt_model = DecisionTreeClassifier(max_depth=10, min_samples_split=20, 
                                      min_samples_leaf=10, random_state=42)
     dt_model.fit(X_train, y_train)
     models['Decision Tree'] = dt_model
-    print("✅ Training complete!")
+    print("Done")
     
-    # Model 3: Artificial Neural Network
-    print("\n🧠 Model 3: Artificial Neural Network (MLP)")
-    print("Justification:")
-    print("  - Captures non-linear relationships between medical indicators")
-    print("  - Multiple hidden layers learn hierarchical medical patterns")
-    print("  - Widely used in medical diagnosis and risk prediction")
-    print("  - State-of-the-art performance on healthcare tasks")
-    print("\nArchitecture: Input -> 64 neurons -> 32 neurons -> 16 neurons -> Output")
-    
+    # Neural Network
+    print("\nTraining Neural Network (64-32-16 architecture)...")
     ann_model = MLPClassifier(hidden_layer_sizes=(64, 32, 16), 
                              activation='relu',
                              solver='adam',
@@ -290,59 +207,42 @@ def build_and_train_models(X_train, X_test, y_train, y_test):
                              validation_fraction=0.1)
     ann_model.fit(X_train, y_train)
     models['ANN'] = ann_model
-    print("✅ Training complete!")
-    
-    print(f"\n✅ All {len(models)} models trained successfully!")
+    print("Done")
     
     return models
 
 
-# ============================================================================
-# 4. MODEL EVALUATION
-# ============================================================================
-
 def evaluate_models(models, X_train, X_test, y_train, y_test):
-    """
-    Evaluate all models using accuracy and other classification metrics.
-    Generate comprehensive comparison visualizations.
-    """
-    print("\n" + "=" * 80)
-    print("4. MODEL EVALUATION")
-    print("=" * 80)
+    """Evaluate model performance"""
+    print("\n" + "=" * 60)
+    print("Evaluating Models...")
+    print("=" * 60)
     
     results = {}
     
     for model_name, model in models.items():
-        print(f"\n{'=' * 40}")
-        print(f"Evaluating: {model_name}")
-        print(f"{'=' * 40}")
+        print(f"\n{model_name}:")
         
-        # Predictions
         y_train_pred = model.predict(X_train)
         y_test_pred = model.predict(X_test)
         
-        # Accuracy scores
         train_accuracy = accuracy_score(y_train, y_train_pred)
         test_accuracy = accuracy_score(y_test, y_test_pred)
         
-        print(f"\n📊 Accuracy Metrics:")
-        print(f"  Training Accuracy:   {train_accuracy:.4f} ({train_accuracy*100:.2f}%)")
-        print(f"  Testing Accuracy:    {test_accuracy:.4f} ({test_accuracy*100:.2f}%)")
-        print(f"  Overfitting Gap:     {(train_accuracy - test_accuracy):.4f}")
+        print(f"  Training accuracy: {train_accuracy:.4f}")
+        print(f"  Testing accuracy:  {test_accuracy:.4f}")
+        print(f"  Difference:        {(train_accuracy - test_accuracy):.4f}")
         
-        # Classification report
-        print(f"\n📋 Detailed Classification Report:")
-        print(classification_report(y_test, y_test_pred, target_names=['No Disease', 'Disease Present']))
+        print(f"\nClassification Report:")
+        print(classification_report(y_test, y_test_pred, target_names=['No Disease', 'Disease']))
         
-        # Confusion matrix
         cm = confusion_matrix(y_test, y_test_pred)
-        print(f"🔢 Confusion Matrix:")
-        print(f"                    Predicted")
-        print(f"                    No    Yes")
-        print(f"Actual No      [  {cm[0][0]:3d}   {cm[0][1]:3d}  ]")
-        print(f"Actual Yes     [  {cm[1][0]:3d}   {cm[1][1]:3d}  ]")
+        print(f"Confusion Matrix:")
+        print(f"              Predicted")
+        print(f"              No   Yes")
+        print(f"Actual No   [ {cm[0][0]:3d}   {cm[0][1]:3d} ]")
+        print(f"Actual Yes  [ {cm[1][0]:3d}   {cm[1][1]:3d} ]")
         
-        # Store results
         results[model_name] = {
             'train_accuracy': train_accuracy,
             'test_accuracy': test_accuracy,
@@ -354,10 +254,8 @@ def evaluate_models(models, X_train, X_test, y_train, y_test):
 
 
 def visualize_results(results, y_test):
-    """Create comprehensive visualization of model comparison."""
-    print("\n" + "=" * 80)
-    print("Creating Model Comparison Visualizations...")
-    print("=" * 80)
+    """Visualize model comparison"""
+    print("\nCreating comparison plots...")
     
     fig = plt.figure(figsize=(18, 10))
     
@@ -452,107 +350,67 @@ def visualize_results(results, y_test):
     plt.tight_layout()
     plt.savefig('c:/Users/aliom/Intro_to_ai/model_comparison.png', dpi=300, bbox_inches='tight')
     plt.show()
-    print("✅ Visualizations saved as 'model_comparison.png'")
+    print("Saved model_comparison.png")
 
 
 def print_final_results(results):
-    """Print comprehensive final results and interpretation."""
-    print("\n" + "=" * 80)
-    print("FINAL RESULTS AND INTERPRETATION")
-    print("=" * 80)
+    """Print summary of results"""
+    print("\n" + "=" * 60)
+    print("RESULTS SUMMARY")
+    print("=" * 60)
     
-    # Find best model
     best_model = max(results.items(), key=lambda x: x[1]['test_accuracy'])
     best_name = best_model[0]
     best_acc = best_model[1]['test_accuracy']
     
-    print(f"\n🏆 BEST MODEL: {best_name}")
-    print(f"   Test Accuracy: {best_acc:.4f} ({best_acc*100:.2f}%)")
+    print(f"\nBest performing model: {best_name}")
+    print(f"Test accuracy: {best_acc:.4f} ({best_acc*100:.2f}%)")
     
-    print("\n📊 All Models Ranked by Test Accuracy:")
+    print("\nAll models ranked:")
     sorted_models = sorted(results.items(), key=lambda x: x[1]['test_accuracy'], reverse=True)
     for rank, (name, result) in enumerate(sorted_models, 1):
         test_acc = result['test_accuracy']
         train_acc = result['train_accuracy']
-        print(f"   {rank}. {name:20s} - Test: {test_acc:.4f} | Train: {train_acc:.4f} | Gap: {train_acc-test_acc:.4f}")
+        print(f"   {rank}. {name:20s} - Test: {test_acc:.4f} | Train: {train_acc:.4f}")
     
-    print("\n💡 KEY INSIGHTS:")
-    print("   • All models achieved >75% accuracy, demonstrating heart disease is predictable")
-    print("   • Feature engineering (interaction terms) improved model performance")
-    print("   • Medical attributes strongly correlate with disease presence")
-    print(f"   • {best_name} provides the best balance of accuracy and generalization")
-    
-    print("\n🎯 MODEL-SPECIFIC OBSERVATIONS:")
-    
-    nb_acc = results['Naive Bayes']['test_accuracy']
-    dt_acc = results['Decision Tree']['test_accuracy']
-    ann_acc = results['ANN']['test_accuracy']
-    
-    print(f"\n   Naive Bayes ({nb_acc:.4f}):")
-    print("   - Fast training and prediction")
-    print("   - Good baseline performance")
-    print("   - Assumes feature independence (may limit accuracy)")
-    
-    print(f"\n   Decision Tree ({dt_acc:.4f}):")
-    print("   - Interpretable decision rules")
-    print("   - Captures non-linear patterns")
-    print("   - May overfit without proper pruning")
-    
-    print(f"\n   Neural Network ({ann_acc:.4f}):")
-    print("   - Captures complex non-linear relationships")
-    print("   - Requires more training time")
-    print("   - Best performance with proper regularization")
-    
-    print("\n" + "=" * 80)
-    print("PROJECT COMPLETE! ✅")
-    print("=" * 80)
+    print("\n" + "=" * 60)
+    print("Done!")
+    print("=" * 60)
 
-
-# ============================================================================
-# MAIN EXECUTION
-# ============================================================================
 
 def main():
-    """Main execution function for the complete ML project."""
-    print("\n" + "=" * 80)
-    print("MACHINE LEARNING PROJECT: HEART DISEASE PREDICTION")
-    print("=" * 80)
-    print("\nProject Overview:")
-    print("  • Dataset: Kaggle/UCI Heart Disease (Cleveland)")
-    print("  • Problem: Binary Classification (No Disease vs Disease Present)")
-    print("  • Models: Naive Bayes, Decision Tree, ANN")
-    print("  • Evaluation: Accuracy Metrics")
-    print("=" * 80)
+    """Main function"""
+    print("\n" + "=" * 60)
+    print("Heart Disease Prediction - ML Project")
+    print("=" * 60)
     
-    # Step 1: Load and explore data
+    # Load data
     df = load_and_explore_data()
     visualize_data(df)
     
-    # Step 2: Preprocess data
+    # Preprocess
     X, y, scaler = preprocess_data(df)
     
     # Split data
-    print("\n📊 Splitting Dataset (80% Train, 20% Test):")
+    print("\nSplitting data (80/20 train/test)...")
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, 
                                                         random_state=42, stratify=y)
-    print(f"   Training samples: {X_train.shape[0]}")
-    print(f"   Testing samples:  {X_test.shape[0]}")
-    print(f"   Features:         {X_train.shape[1]}")
+    print(f"Training samples: {X_train.shape[0]}")
+    print(f"Testing samples: {X_test.shape[0]}")
     
-    # Step 3: Build and train models
+    # Train models
     models = build_and_train_models(X_train, X_test, y_train, y_test)
     
-    # Step 4: Evaluate models
+    # Evaluate
     results = evaluate_models(models, X_train, X_test, y_train, y_test)
     
-    # Step 5: Visualize and summarize
+    # Visualize results
     visualize_results(results, y_test)
     print_final_results(results)
     
-    print("\n📁 Output Files Generated:")
-    print("   1. data_exploration.png - Data visualization and analysis")
-    print("   2. model_comparison.png - Model performance comparison")
-    print("\n✨ Thank you for running this ML project!")
+    print("\nOutput files:")
+    print("  - data_exploration.png")
+    print("  - model_comparison.png")
 
 
 if __name__ == "__main__":
