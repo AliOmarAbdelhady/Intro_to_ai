@@ -16,12 +16,11 @@ sns.set_palette("husl")
 
 
 def load_and_explore_data():
-    """Load and explore the heart disease dataset"""
     print("=" * 60)
-    print("Loading Heart Disease Dataset...")
+    print("Loading Mental Productivity Dataset...")
     print("=" * 60)
     
-    df = pd.read_csv('heart.csv')
+    df = pd.read_csv('mental_productivity_dataset.csv')
     
     print(f"\nDataset shape: {df.shape[0]} rows, {df.shape[1]} columns")
     print("\nFirst few rows:")
@@ -33,63 +32,61 @@ def load_and_explore_data():
     print("\nData types and missing values:")
     print(df.info())
     
-    print("\nTarget distribution:")
-    print(df['target'].value_counts().sort_index())
+    print("\nProductivity score distribution:")
+    print(df['productivity_score_1_10'].describe())
     
     return df
 
 
 def visualize_data(df):
-    """Create visualizations for data exploration"""
     print("\nGenerating visualizations...")
     
     fig = plt.figure(figsize=(20, 12))
     
     # Target distribution
     plt.subplot(3, 4, 1)
-    df['target'].value_counts().sort_index().plot(kind='bar', color='skyblue')
-    plt.title('Disease Distribution')
-    plt.xlabel('Status')
+    plt.hist(df['productivity_score_1_10'], bins=20, color='skyblue', edgecolor='black')
+    plt.title('Productivity Score Distribution')
+    plt.xlabel('Productivity Score (1-10)')
     plt.ylabel('Count')
-    plt.xticks(rotation=0)
     
     # Feature distributions
-    features = ['age', 'trestbps', 'chol', 'thalach']
+    features = ['sleep_hours', 'daily_exercise_mins', 'screen_time_hours', 'stress_level_1_10', 'mood_level_1_10']
     for idx, feature in enumerate(features, 2):
         plt.subplot(3, 4, idx)
         plt.hist(df[feature], bins=30, color='lightcoral', edgecolor='black', alpha=0.7)
-        plt.title(f'{feature.title()} Distribution')
-        plt.xlabel(feature.title())
+        plt.title(f'{feature.replace("_", " ").title()} Distribution')
+        plt.xlabel(feature.replace('_', ' ').title())
         plt.ylabel('Frequency')
     
     # Correlation with target
-    plt.subplot(3, 4, 6)
+    plt.subplot(3, 4, 7)
     correlation = df.corr()
-    sns.heatmap(correlation[['target']].sort_values(by='target', ascending=False).head(6),
+    sns.heatmap(correlation[['productivity_score_1_10']].sort_values(by='productivity_score_1_10', ascending=False).head(7),
                 annot=True, cmap='coolwarm', fmt='.2f', linewidths=0.5)
-    plt.title('Correlation with Target')
+    plt.title('Correlation with Productivity')
     
     # Box plots
-    key_features = ['age', 'trestbps', 'chol', 'thalach']
-    for idx, feature in enumerate(key_features, 7):
+    key_features = ['sleep_hours', 'stress_level_1_10', 'mood_level_1_10']
+    df_temp = df.copy()
+    df_temp['productivity_binary'] = (df_temp['productivity_score_1_10'] >= df_temp['productivity_score_1_10'].median()).astype(int)
+    for idx, feature in enumerate(key_features, 8):
         plt.subplot(3, 4, idx)
-        df.boxplot(column=feature, by='target', ax=plt.gca())
-        plt.title(f'{feature.title()} by Disease')
+        df_temp.boxplot(column=feature, by='productivity_binary', ax=plt.gca())
+        plt.title(f'{feature.replace("_", " ").title()} by Productivity')
         plt.suptitle('')
-        plt.xlabel('Disease Status')
-        plt.ylabel(feature.title())
+        plt.xlabel('Productivity Level')
+        plt.ylabel(feature.replace('_', ' ').title())
     
     # Scatter plot
     plt.subplot(3, 4, 11)
-    df_temp = df.copy()
-    df_temp['disease_binary'] = (df_temp['target'] > 0).astype(int)
-    for disease in [0, 1]:
-        disease_data = df_temp[df_temp['disease_binary'] == disease]
-        plt.scatter(disease_data['age'], disease_data['thalach'], 
-                   label=f'Disease: {"Yes" if disease else "No"}', alpha=0.5)
-    plt.xlabel('Age')
-    plt.ylabel('Max Heart Rate')
-    plt.title('Age vs Heart Rate')
+    for prod in [0, 1]:
+        prod_data = df_temp[df_temp['productivity_binary'] == prod]
+        plt.scatter(prod_data['sleep_hours'], prod_data['mood_level_1_10'], 
+                   label=f'Productivity: {"High" if prod else "Low"}', alpha=0.5)
+    plt.xlabel('Sleep Hours')
+    plt.ylabel('Mood Level')
+    plt.title('Sleep vs Mood')
     plt.legend()
     
     # Missing values check
@@ -114,6 +111,11 @@ def preprocess_data(df):
     
     df_processed = df.copy()
     
+    # Drop id column
+    if 'id' in df_processed.columns:
+        df_processed = df_processed.drop('id', axis=1)
+        print("\nDropped id column")
+    
     # Check missing values
     print("\nChecking for missing values...")
     missing_values = df_processed.isnull().sum()
@@ -129,7 +131,7 @@ def preprocess_data(df):
     # Remove outliers using IQR
     print("\nHandling outliers...")
     numerical_features = df_processed.select_dtypes(include=[np.number]).columns.tolist()
-    numerical_features.remove('target')
+    numerical_features.remove('productivity_score_1_10')
     
     outlier_counts = {}
     for feature in numerical_features:
@@ -149,18 +151,21 @@ def preprocess_data(df):
     
     # Create new features
     print("\nCreating new features...")
-    df_processed['age_thalach'] = df_processed['age'] * df_processed['thalach']
-    df_processed['bp_chol_ratio'] = df_processed['trestbps'] / (df_processed['chol'] + 0.001)
-    df_processed['age_squared'] = df_processed['age'] ** 2
-    df_processed['exercise_heart_ratio'] = df_processed['exang'] * df_processed['thalach']
+    df_processed['sleep_exercise'] = df_processed['sleep_hours'] * df_processed['daily_exercise_mins']
+    df_processed['stress_screen_ratio'] = df_processed['stress_level_1_10'] / (df_processed['screen_time_hours'] + 0.001)
+    df_processed['diet_mood_product'] = df_processed['diet_quality_1_10'] * df_processed['mood_level_1_10']
+    df_processed['sleep_squared'] = df_processed['sleep_hours'] ** 2
+    df_processed['health_score'] = df_processed['sleep_hours'] + df_processed['diet_quality_1_10'] - df_processed['stress_level_1_10']
     
     # Convert to binary classification
-    print("\nConverting target to binary (0 = no disease, 1 = disease)...")
-    df_processed['disease_binary'] = (df_processed['target'] > 0).astype(int)
-    print(f"Class distribution:\n{df_processed['disease_binary'].value_counts()}")
+    print("\nConverting target to binary (0 = low productivity, 1 = high productivity)...")
+    median_productivity = df_processed['productivity_score_1_10'].median()
+    df_processed['productivity_binary'] = (df_processed['productivity_score_1_10'] >= median_productivity).astype(int)
+    print(f"Median productivity score: {median_productivity:.2f}")
+    print(f"Class distribution:\n{df_processed['productivity_binary'].value_counts()}")
     
-    X = df_processed.drop(['target', 'disease_binary'], axis=1)
-    y = df_processed['disease_binary']
+    X = df_processed.drop(['productivity_score_1_10', 'productivity_binary'], axis=1)
+    y = df_processed['productivity_binary']
     
     # Scaling
     print("\nScaling features...")
@@ -234,7 +239,7 @@ def evaluate_models(models, X_train, X_test, y_train, y_test):
         print(f"  Difference:        {(train_accuracy - test_accuracy):.4f}")
         
         print(f"\nClassification Report:")
-        print(classification_report(y_test, y_test_pred, target_names=['No Disease', 'Disease']))
+        print(classification_report(y_test, y_test_pred, target_names=['Low Productivity', 'High Productivity']))
         
         cm = confusion_matrix(y_test, y_test_pred)
         print(f"Confusion Matrix:")
@@ -308,8 +313,8 @@ def visualize_results(results, y_test):
         plt.subplot(2, 3, idx)
         cm = result['confusion_matrix']
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False,
-                   xticklabels=['No Disease', 'Disease'],
-                   yticklabels=['No Disease', 'Disease'])
+                   xticklabels=['Low Prod', 'High Prod'],
+                   yticklabels=['Low Prod', 'High Prod'])
         plt.title(f'{model_name}\nConfusion Matrix', fontsize=12, fontweight='bold')
         plt.ylabel('Actual', fontweight='bold')
         plt.xlabel('Predicted', fontweight='bold')
@@ -379,9 +384,8 @@ def print_final_results(results):
 
 
 def main():
-    """Main function"""
     print("\n" + "=" * 60)
-    print("Heart Disease Prediction - ML Project")
+    print("Mental Productivity Prediction - ML Project")
     print("=" * 60)
     
     # Load data

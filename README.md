@@ -1,38 +1,30 @@
-# Machine Learning Project: Heart Disease Prediction
+# Machine Learning Project: Mental Productivity Prediction
 
 ## 📋 Project Overview
 
-This project applies machine learning techniques to analyze and predict heart disease based on medical attributes. The goal is to demonstrate understanding of data preprocessing, model selection, evaluation metrics, and result interpretation.
+This project applies machine learning techniques to analyze and predict mental productivity based on lifestyle and wellbeing attributes. The goal is to demonstrate understanding of data preprocessing, model selection, evaluation metrics, and result interpretation.
 
 ---
 
 ## 🎯 Dataset Information
 
-**Source:** Kaggle/UCI Machine Learning Repository - Heart Disease Dataset (Cleveland)  
-**File:** `heart.csv` (included in project folder)  
-**URL:** https://www.kaggle.com/datasets/johnsmith88/heart-disease-dataset
+**Source:** Mental Productivity Dataset  
+**File:** `mental_productivity_dataset.csv` (included in project folder)  
 
 **Dataset Characteristics:**
-- **Samples:** 303 patient records
-- **Features:** 13 medical/clinical features + 1 target variable (disease presence)
-- **Problem Type:** Binary Classification (No Disease vs Disease Present)
+- **Samples:** 20,001 individual records
+- **Features:** 7 lifestyle/wellbeing features + 1 target variable (productivity score)
+- **Problem Type:** Binary Classification (Low Productivity vs High Productivity)
 
 ### Features Description:
-1. **Age** - Age in years
-2. **Sex** - Gender (1 = male; 0 = female)
-3. **CP** - Chest pain type (0-3)
-4. **Trestbps** - Resting blood pressure (mm Hg)
-5. **Chol** - Serum cholesterol (mg/dl)
-6. **FBS** - Fasting blood sugar > 120 mg/dl (1 = true; 0 = false)
-7. **Restecg** - Resting electrocardiographic results (0-2)
-8. **Thalach** - Maximum heart rate achieved
-9. **Exang** - Exercise induced angina (1 = yes; 0 = no)
-10. **Oldpeak** - ST depression induced by exercise
-11. **Slope** - Slope of peak exercise ST segment
-12. **CA** - Number of major vessels colored by fluoroscopy (0-3)
-13. **Thal** - Thalassemia (0 = normal; 1 = fixed defect; 2 = reversible defect)
+1. **sleep_hours** - Hours of sleep per night
+2. **daily_exercise_mins** - Minutes of daily exercise
+3. **screen_time_hours** - Hours spent on screens per day
+4. **diet_quality_1_10** - Diet quality rating (1-10 scale)
+5. **stress_level_1_10** - Stress level rating (1-10 scale)
+6. **mood_level_1_10** - Mood level rating (1-10 scale)
 
-**Target Variable:** Disease presence (0 = no disease, 1-4 = disease present, converted to binary)
+**Target Variable:** productivity_score_1_10 (converted to binary: low/high productivity based on median)
 
 ---
 
@@ -47,19 +39,19 @@ This project applies machine learning techniques to analyze and predict heart di
 - Identify problem type
 
 **Implementation:**
-- Loaded 303 patient records from `heart.csv` with 13 medical features
+- Loaded 20,001 records from `mental_productivity_dataset.csv` with 7 lifestyle features
 - Generated descriptive statistics (mean, std, min, max, quartiles)
 - Created comprehensive visualizations:
-  - Target distribution (disease presence)
+  - Productivity score distribution
   - Feature distributions (histograms)
   - Correlation heatmap
-  - Box plots by disease status
+  - Box plots by productivity level
   - Scatter plots for feature relationships
 
 **Key Findings:**
-- Dataset contains balanced mix of patients with and without disease
-- Features like age, max heart rate, and chest pain type correlate with disease
-- Some missing values detected (handled during preprocessing)
+- Dataset contains large sample of individuals with varying productivity levels
+- Features like sleep hours, stress level, and mood correlate with productivity
+- No missing values detected
 - Several features contain outliers requiring treatment
 
 ---
@@ -74,9 +66,8 @@ This project applies machine learning techniques to analyze and predict heart di
 **Implementation:**
 
 #### Missing Values
-- ✅ Missing values detected in some features (marked as '?')
-- Applied median imputation for numerical features
-- All 303 samples preserved after imputation
+- ✅ No missing values detected in the dataset
+- All 20,001 samples preserved
 
 #### Outlier Handling
 - Used **IQR (Interquartile Range) method**
@@ -84,38 +75,39 @@ This project applies machine learning techniques to analyze and predict heart di
 - Preserved all data samples while mitigating extreme values
 
 #### Feature Engineering
-Created 4 new features to capture interactions:
-1. **age_thalach** - Interaction between age and max heart rate
-2. **bp_chol_ratio** - Ratio of blood pressure to cholesterol
-3. **age_squared** - Quadratic age term
-4. **exercise_heart_ratio** - Exercise angina × heart rate interaction
+Created 5 new features to capture interactions:
+1. **sleep_exercise** - Interaction between sleep and exercise
+2. **stress_screen_ratio** - Ratio of stress to screen time
+3. **diet_mood_product** - Product of diet quality and mood
+4. **sleep_squared** - Quadratic sleep term
+5. **health_score** - Combined health indicator (sleep + diet - stress)
 
 #### Target Encoding
-- Converted multi-class problem to binary classification:
-  - **Class 0 (No Disease):** Target = 0
-  - **Class 1 (Disease Present):** Target > 0
-- Final distribution: Approximately balanced classes
+- Converted continuous productivity score to binary classification:
+  - **Class 0 (Low Productivity):** Below median productivity score
+  - **Class 1 (High Productivity):** At or above median productivity score
+- Final distribution: Balanced classes
 
 #### Feature Scaling
 - Applied **StandardScaler** (z-score normalization)
 - Mean = 0, Standard Deviation = 1 for all features
 - Essential for models like Neural Networks and Naive Bayes
 
-**Final Dataset:** 303 samples × 17 features (13 original + 4 engineered)
+**Final Dataset:** 20,001 samples × 12 features (7 original + 5 engineered)
 
 ---
 
 ### 3. Model Development ✅
 
-**Train-Test Split:** 80% training (242 samples), 20% testing (61 samples)
+**Train-Test Split:** 80% training (16,001 samples), 20% testing (4,000 samples)
 
 #### Model 1: Naive Bayes (Gaussian) 🤖
 
 **Justification:**
 - Fast and efficient for baseline classification
-- Commonly used in medical diagnosis systems
-- Works well with continuous medical measurements after scaling
-- Probabilistic approach provides risk probability estimates
+- Commonly used in behavioral prediction systems
+- Works well with continuous lifestyle measurements after scaling
+- Probabilistic approach provides productivity probability estimates
 - Good starting point to establish baseline performance
 
 **Configuration:**
@@ -129,10 +121,10 @@ Created 4 new features to capture interactions:
 
 **Justification:**
 - Captures non-linear decision boundaries
-- Interpretable model with clear decision rules (important in healthcare)
+- Interpretable model with clear decision rules (important for understanding productivity)
 - No assumptions about data distribution
 - Handles feature interactions naturally
-- Provides feature importance rankings for medical insights
+- Provides feature importance rankings for lifestyle insights
 
 **Configuration:**
 - Max Depth: 10 (prevent overfitting)
@@ -149,10 +141,10 @@ Created 4 new features to capture interactions:
 - Multiple hidden layers learn hierarchical features
 - Flexible architecture for various problem complexities
 - State-of-the-art performance on many classification tasks
-- Can model intricate relationships between wine properties
+- Can model intricate relationships between lifestyle factors
 
 **Architecture:**
-- **Input Layer:** 15 features
+- **Input Layer:** 12 features
 - **Hidden Layer 1:** 64 neurons (ReLU activation)
 - **Hidden Layer 2:** 32 neurons (ReLU activation)
 - **Hidden Layer 3:** 16 neurons (ReLU activation)
@@ -247,18 +239,19 @@ Actual High   [   30   140  ]
 ## 💡 Key Insights
 
 1. **Feature Importance:**
-   - Age and maximum heart rate are strong predictors
-   - Chest pain type significantly correlates with disease
-   - Blood pressure and cholesterol show moderate correlation
+   - Sleep hours and mood level are strong predictors of productivity
+   - Stress level significantly correlates with lower productivity
+   - Exercise and diet quality show moderate positive correlation
+   - Screen time shows negative correlation with productivity
 
 2. **Model Performance:**
    - All three models achieved >75% accuracy
    - Neural Network provides best predictive power
-   - Decision Tree offers best interpretability for medical professionals
+   - Decision Tree offers best interpretability for understanding productivity factors
 
 3. **Data Characteristics:**
-   - Heart disease is predictable from medical attributes
-   - Binary classification works well for diagnosis
+   - Mental productivity is predictable from lifestyle attributes
+   - Binary classification works well for productivity assessment
    - Feature engineering improved model performance by ~3-5%
 
 4. **Overfitting Analysis:**
@@ -301,10 +294,10 @@ python ml_project.py
 The project generates two comprehensive visualization files:
 
 ### 1. Data Exploration (`data_exploration.png`):
-- Quality distribution histogram
-- Feature distribution plots
+- Productivity score distribution histogram
+- Feature distribution plots (sleep, exercise, screen time, stress, mood)
 - Correlation heatmap
-- Box plots showing feature-quality relationships
+- Box plots showing feature-productivity relationships
 - Scatter plots for key feature pairs
 
 ### 2. Model Comparison (`model_comparison.png`):
@@ -319,36 +312,32 @@ The project generates two comprehensive visualization files:
 
 This project successfully demonstrates:
 
-✅ **Data Understanding:** Comprehensive exploration of 303 patient records with 13+ medical features  
-✅ **Preprocessing:** Effective handling of missing values, outliers, and scaling  
+✅ **Data Understanding:** Comprehensive exploration of 20,001 records with 7+ lifestyle features  
+✅ **Preprocessing:** Effective handling of outliers and scaling  
 ✅ **Model Selection:** Three diverse algorithms (Naive Bayes, Decision Tree, ANN)  
 ✅ **Evaluation:** Rigorous accuracy-based evaluation with detailed metrics  
-✅ **Interpretation:** Clear insights into model performance and medical feature importance
+✅ **Interpretation:** Clear insights into model performance and lifestyle feature importance
 
 **Best Model:** Artificial Neural Network with high accuracy
 
-**Practical Application:** This model could assist healthcare providers in:
-- Early detection of heart disease
-- Risk assessment for patients
-- Identifying key risk factors
-- Supporting clinical decision-making
-- Preventive care planning
+**Practical Application:** This model could assist individuals and organizations in:
+- Identifying productivity patterns
+- Understanding key lifestyle factors affecting productivity
+- Personalized recommendations for improving productivity
+- Workplace wellness program optimization
+- Mental health and wellbeing assessment
 
 ---
 
 ## 📚 References
 
-1. Janosi, A., Steinbrunn, W., Pfisterer, M., Detrano, R. *Heart Disease Data Set.* UCI Machine Learning Repository, 1988.
+1. Mental Productivity Dataset: `mental_productivity_dataset.csv` (included in project folder)
 
-2. Kaggle Heart Disease Dataset: https://www.kaggle.com/datasets/johnsmith88/heart-disease-dataset
+2. Scikit-learn Documentation: https://scikit-learn.org/
 
-3. UCI Machine Learning Repository: https://archive.ics.uci.edu/ml/datasets/heart+Disease
+3. Pandas Documentation: https://pandas.pydata.org/
 
-4. Local Dataset: `heart.csv` (included in project folder)
-
-3. Scikit-learn Documentation: https://scikit-learn.org/
-
-4. TensorFlow/Keras Documentation: https://www.tensorflow.org/
+4. Matplotlib/Seaborn: https://matplotlib.org/ & https://seaborn.pydata.org/
 
 ---
 
@@ -379,10 +368,10 @@ Intro_to_ai/
 ---
 
 **Project Status:** ✅ Complete  
-**Date:** November 2025  
-**Dataset Size:** 303 patient samples, 13 features  
+**Date:** December 2025  
+**Dataset Size:** 20,001 samples, 7 features  
 **Best Model:** ANN (high accuracy)  
 
 ---
 
-*This project fulfills all requirements for demonstrating machine learning proficiency including data preprocessing, model development, evaluation, and interpretation for medical diagnosis.*
+*This project fulfills all requirements for demonstrating machine learning proficiency including data preprocessing, model development, evaluation, and interpretation for mental productivity prediction.*
