@@ -2,7 +2,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.model_selection import train_test_split
+from pathlib import Path
+from sklearn.model_selection import train_test_split, cross_val_score, StratifiedKFold
 from sklearn.preprocessing import StandardScaler
 from sklearn.naive_bayes import GaussianNB
 from sklearn.tree import DecisionTreeClassifier
@@ -14,6 +15,10 @@ warnings.filterwarnings('ignore')
 
 plt.style.use('seaborn-v0_8-darkgrid')
 sns.set_palette("husl")
+
+# Output directory for all generated files
+OUTPUT_DIR = Path('outputs')
+OUTPUT_DIR.mkdir(exist_ok=True)
 
 
 def load_and_explore_data():
@@ -99,9 +104,10 @@ def visualize_data(df):
     plt.ylabel('Count')
     
     plt.tight_layout()
-    plt.savefig('c:/Users/aliom/Intro_to_ai/data_exploration.png', dpi=300, bbox_inches='tight')
+    output_path = OUTPUT_DIR / 'data_exploration.png'
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.show()
-    print("Saved data_exploration.png")
+    print(f"Saved {output_path}")
 
 
 def preprocess_data(df):
@@ -168,57 +174,96 @@ def preprocess_data(df):
     X = df_processed.drop(['productivity_score_1_10', 'productivity_binary'], axis=1)
     y = df_processed['productivity_binary']
     
-    # Scaling
-    print("\nScaling features...")
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-    X_scaled = pd.DataFrame(X_scaled, columns=X.columns)
+    print(f"\nPreprocessing done. Final shape: {X.shape}")
     
-    print(f"\nPreprocessing done. Final shape: {X_scaled.shape}")
-    
-    return X_scaled, y, scaler
+    # Return raw X and y (we will scale later in main)
+    return X, y
 
 
 def build_and_train_models(X_train, X_test, y_train, y_test):
-    """Train three different models"""
+    """Train three different models with overfitting prevention and cross-validation"""
     print("\n" + "=" * 60)
-    print("Training Models...")
+    print("Training Models (with Cross-Validation)...")
     print("=" * 60)
     
     models = {}
+    cv_results = {}
     
-    # Naive Bayes
+    # Setup cross-validation strategy
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    
+    # Naive Bayes - inherently resistant to overfitting
     print("\nTraining Naive Bayes...")
-    nb_model = GaussianNB()
+    nb_model = GaussianNB(var_smoothing=1e-8)  # Slight regularization
+    
+    # Perform cross-validation
+    print("  Running 5-fold cross-validation...")
+    cv_scores = cross_val_score(nb_model, X_train, y_train, cv=cv, scoring='accuracy')
+    cv_results['Naive Bayes'] = cv_scores
+    print(f"  CV Scores: {cv_scores}")
+    print(f"  CV Mean: {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
+    
+    # Train on full training set
     nb_model.fit(X_train, y_train)
     models['Naive Bayes'] = nb_model
     print("Done")
     
-    # Decision Tree
-    print("\nTraining Decision Tree...")
-    dt_model = DecisionTreeClassifier(max_depth=10, min_samples_split=20, 
-                                     min_samples_leaf=10, random_state=42)
+    # Decision Tree - MORE regularization to prevent overfitting
+    print("\nTraining Decision Tree (with stronger regularization)...")
+    dt_model = DecisionTreeClassifier(
+        max_depth=5,              # Reduced from 10 to prevent deep trees
+        min_samples_split=50,     # Increased from 20 (need more samples to split)
+        min_samples_leaf=25,      # Increased from 10 (larger leaf nodes)
+        min_impurity_decrease=0.001,  # Require minimum improvement to split
+        max_features='sqrt',      # Use subset of features at each split
+        random_state=42,
+        ccp_alpha=0.01           # Cost complexity pruning
+    )
+    
+    # Perform cross-validation
+    print("  Running 5-fold cross-validation...")
+    cv_scores = cross_val_score(dt_model, X_train, y_train, cv=cv, scoring='accuracy')
+    cv_results['Decision Tree'] = cv_scores
+    print(f"  CV Scores: {cv_scores}")
+    print(f"  CV Mean: {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
+    
+    # Train on full training set
     dt_model.fit(X_train, y_train)
     models['Decision Tree'] = dt_model
     print("Done")
     
-    # Neural Network
-    print("\nTraining Neural Network (64-32-16 architecture)...")
-    ann_model = MLPClassifier(hidden_layer_sizes=(64, 32, 16), 
-                             activation='relu',
-                             solver='adam',
-                             max_iter=500,
-                             random_state=42,
-                             early_stopping=True,
-                             validation_fraction=0.1)
+    # Neural Network - Add L2 regularization and dropout-like behavior
+    print("\nTraining Neural Network (with regularization)...")
+    ann_model = MLPClassifier(
+        hidden_layer_sizes=(32, 16),  # Smaller network (reduced from 64-32-16)
+        activation='relu',
+        solver='adam',
+        alpha=0.01,              # L2 regularization (increased from default 0.0001)
+        max_iter=500,
+        random_state=42,
+        early_stopping=True,
+        validation_fraction=0.2,  # Increased validation set (was 0.1)
+        n_iter_no_change=15,     # Patience for early stopping
+        learning_rate_init=0.001,
+        batch_size='auto'
+    )
+    
+    # Perform cross-validation
+    print("  Running 5-fold cross-validation...")
+    cv_scores = cross_val_score(ann_model, X_train, y_train, cv=cv, scoring='accuracy')
+    cv_results['ANN'] = cv_scores
+    print(f"  CV Scores: {cv_scores}")
+    print(f"  CV Mean: {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
+    
+    # Train on full training set
     ann_model.fit(X_train, y_train)
     models['ANN'] = ann_model
     print("Done")
     
-    return models
+    return models, cv_results
 
 
-def evaluate_models(models, X_train, X_test, y_train, y_test):
+def evaluate_models(models, X_train, X_test, y_train, y_test, cv_results):
     """Evaluate model performance"""
     print("\n" + "=" * 60)
     print("Evaluating Models...")
@@ -234,10 +279,13 @@ def evaluate_models(models, X_train, X_test, y_train, y_test):
         
         train_accuracy = accuracy_score(y_train, y_train_pred)
         test_accuracy = accuracy_score(y_test, y_test_pred)
+        cv_mean = cv_results[model_name].mean()
+        cv_std = cv_results[model_name].std()
         
+        print(f"  Cross-Val Mean:    {cv_mean:.4f} (+/- {cv_std * 2:.4f})")
         print(f"  Training accuracy: {train_accuracy:.4f}")
         print(f"  Testing accuracy:  {test_accuracy:.4f}")
-        print(f"  Difference:        {(train_accuracy - test_accuracy):.4f}")
+        print(f"  Overfit (Train-Test): {(train_accuracy - test_accuracy):.4f}")
         
         print(f"\nClassification Report:")
         print(classification_report(y_test, y_test_pred, target_names=['Low Productivity', 'High Productivity']))
@@ -250,6 +298,8 @@ def evaluate_models(models, X_train, X_test, y_train, y_test):
         print(f"Actual Yes  [ {cm[1][0]:3d}   {cm[1][1]:3d} ]")
         
         results[model_name] = {
+            'cv_mean': cv_mean,
+            'cv_std': cv_std,
             'train_accuracy': train_accuracy,
             'test_accuracy': test_accuracy,
             'predictions': y_test_pred,
@@ -354,12 +404,13 @@ def visualize_results(results, y_test):
     plt.title('Performance Summary', fontsize=14, fontweight='bold', pad=20)
     
     plt.tight_layout()
-    plt.savefig('c:/Users/aliom/Intro_to_ai/model_comparison.png', dpi=300, bbox_inches='tight')
+    output_path = OUTPUT_DIR / 'model_comparison.png'
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.show()
-    print("Saved model_comparison.png")
+    print(f"Saved {output_path}")
 
 
-def save_best_model(models, results, scaler):
+def save_best_model(models, results, scaler, X):
     """Save the best performing model and scaler"""
     print("\n" + "=" * 60)
     print("Saving Best Model...")
@@ -371,24 +422,31 @@ def save_best_model(models, results, scaler):
     best_acc = results[best_model_name]['test_accuracy']
     
     # Save model
-    model_filename = 'c:/Users/aliom/Intro_to_ai/best_model.pkl'
+    model_filename = OUTPUT_DIR / 'best_model.pkl'
     joblib.dump(best_model, model_filename)
     print(f"\nSaved {best_model_name} to: {model_filename}")
     print(f"Test accuracy: {best_acc:.4f} ({best_acc*100:.2f}%)")
     
     # Save scaler
-    scaler_filename = 'c:/Users/aliom/Intro_to_ai/scaler.pkl'
+    scaler_filename = OUTPUT_DIR / 'scaler.pkl'
     joblib.dump(scaler, scaler_filename)
     print(f"Saved scaler to: {scaler_filename}")
     
+    # Save feature columns (needed by app.py)
+    feature_columns = X.columns.tolist() if hasattr(X, 'columns') else []
+    features_filename = OUTPUT_DIR / 'feature_columns.csv'
+    pd.DataFrame(feature_columns, columns=['feature']).to_csv(features_filename, index=False)
+    print(f"Saved feature columns to: {features_filename}")
+    
     # Save model info
-    info_filename = 'c:/Users/aliom/Intro_to_ai/model_info.txt'
+    info_filename = OUTPUT_DIR / 'model_info.txt'
     with open(info_filename, 'w') as f:
         f.write(f"Best Model: {best_model_name}\n")
         f.write(f"Test Accuracy: {best_acc:.4f} ({best_acc*100:.2f}%)\n")
         f.write(f"Training Accuracy: {results[best_model_name]['train_accuracy']:.4f}\n")
         f.write(f"\nModel saved at: {model_filename}\n")
         f.write(f"Scaler saved at: {scaler_filename}\n")
+        f.write(f"Features saved at: {features_filename}\n")
     print(f"Saved model info to: {info_filename}")
     
     print("\n" + "=" * 60)
@@ -403,16 +461,20 @@ def print_final_results(results):
     best_model = max(results.items(), key=lambda x: x[1]['test_accuracy'])
     best_name = best_model[0]
     best_acc = best_model[1]['test_accuracy']
+    best_cv = best_model[1]['cv_mean']
     
     print(f"\nBest performing model: {best_name}")
-    print(f"Test accuracy: {best_acc:.4f} ({best_acc*100:.2f}%)")
+    print(f"  Cross-validation: {best_cv:.4f} (+/- {best_model[1]['cv_std'] * 2:.4f})")
+    print(f"  Test accuracy:    {best_acc:.4f} ({best_acc*100:.2f}%)")
     
-    print("\nAll models ranked:")
+    print("\nAll models ranked by test accuracy:")
     sorted_models = sorted(results.items(), key=lambda x: x[1]['test_accuracy'], reverse=True)
     for rank, (name, result) in enumerate(sorted_models, 1):
+        cv_mean = result['cv_mean']
         test_acc = result['test_accuracy']
         train_acc = result['train_accuracy']
-        print(f"   {rank}. {name:20s} - Test: {test_acc:.4f} | Train: {train_acc:.4f}")
+        overfit = train_acc - test_acc
+        print(f"   {rank}. {name:20s} - CV: {cv_mean:.4f} | Test: {test_acc:.4f} | Train: {train_acc:.4f} | Overfit: {overfit:+.4f}")
     
     print("\n" + "=" * 60)
     print("Done!")
@@ -428,35 +490,50 @@ def main():
     df = load_and_explore_data()
     visualize_data(df)
     
-    # Preprocess
-    X, y, scaler = preprocess_data(df)
+   # Preprocess (Get raw data)
+    X, y = preprocess_data(df)
     
-    # Split data
+    # Split data FIRST
     print("\nSplitting data (80/20 train/test)...")
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, 
                                                         random_state=42, stratify=y)
+    
+    # Scale SECOND (Fit on Train, Transform Test)
+    print("Scaling features...")
+    scaler = StandardScaler()
+    
+    # The fix: fit only on training data
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+    
+    # Convert back to DataFrame to keep column names
+    X_train = pd.DataFrame(X_train_scaled, columns=X.columns)
+    X_test = pd.DataFrame(X_test_scaled, columns=X.columns)
+    
     print(f"Training samples: {X_train.shape[0]}")
     print(f"Testing samples: {X_test.shape[0]}")
+
     
-    # Train models
-    models = build_and_train_models(X_train, X_test, y_train, y_test)
+    # Train models with cross-validation
+    models, cv_results = build_and_train_models(X_train, X_test, y_train, y_test)
     
     # Evaluate
-    results = evaluate_models(models, X_train, X_test, y_train, y_test)
+    results = evaluate_models(models, X_train, X_test, y_train, y_test, cv_results)
     
     # Visualize results
     visualize_results(results, y_test)
     
     # Save best model
-    save_best_model(models, results, scaler)
+    save_best_model(models, results, scaler, X)
     
     print_final_results(results)
     
-    print("\nOutput files:")
+    print(f"\nOutput files saved in: {OUTPUT_DIR.absolute()}")
     print("  - data_exploration.png")
     print("  - model_comparison.png")
     print("  - best_model.pkl")
     print("  - scaler.pkl")
+    print("  - feature_columns.csv")
     print("  - model_info.txt")
 
 

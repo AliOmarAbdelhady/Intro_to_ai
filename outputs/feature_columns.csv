@@ -1,0 +1,12 @@
+feature
+sleep_hours
+daily_exercise_mins
+screen_time_hours
+diet_quality_1_10
+stress_level_1_10
+mood_level_1_10
+sleep_exercise
+stress_screen_ratio
+diet_mood_product
+sleep_squared
+health_score

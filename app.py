@@ -18,10 +18,10 @@ st.set_page_config(
 # -----------------------------
 @st.cache_resource
 def load_artifacts():
-    model = joblib.load("best_model.pkl")
-    scaler = joblib.load("scaler.pkl")
-    feature_df = pd.read_csv("feature_columns.csv")
-    feature_names = feature_df.columns.tolist()
+    model = joblib.load("outputs/best_model.pkl")
+    scaler = joblib.load("outputs/scaler.pkl")
+    feature_df = pd.read_csv("outputs/feature_columns.csv")
+    feature_names = feature_df['feature'].tolist()
     return model, scaler, feature_names
 
 model, scaler, feature_names = load_artifacts()
