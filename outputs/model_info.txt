@@ -1,6 +1,6 @@
-Best Model: Naive Bayes
-Test Accuracy: 0.7742 (77.42%)
-Training Accuracy: 0.7628
+Best Model: ANN
+Test Accuracy: 0.7762 (77.62%)
+Training Accuracy: 0.7748
 
 Model saved at: outputs\best_model.pkl
 Scaler saved at: outputs\scaler.pkl

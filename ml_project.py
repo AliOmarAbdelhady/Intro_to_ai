@@ -232,20 +232,22 @@ def build_and_train_models(X_train, X_test, y_train, y_test):
     models['Decision Tree'] = dt_model
     print("Done")
     
-    # Neural Network - Add L2 regularization and dropout-like behavior
-    print("\nTraining Neural Network (with regularization)...")
+    # Neural Network - Optimized for best performance
+    print("\nTraining Neural Network (optimized for best performance)...")
     ann_model = MLPClassifier(
-        hidden_layer_sizes=(32, 16),  # Smaller network (reduced from 64-32-16)
+        hidden_layer_sizes=(128, 64, 32),  # Larger, deeper network
         activation='relu',
         solver='adam',
-        alpha=0.01,              # L2 regularization (increased from default 0.0001)
-        max_iter=500,
+        alpha=0.0001,            # Minimal regularization for better fit
+        max_iter=2000,           # More training iterations
         random_state=42,
         early_stopping=True,
-        validation_fraction=0.2,  # Increased validation set (was 0.1)
-        n_iter_no_change=15,     # Patience for early stopping
-        learning_rate_init=0.001,
-        batch_size='auto'
+        validation_fraction=0.1,  # Smaller validation = more training data
+        n_iter_no_change=50,     # More patience before stopping
+        learning_rate_init=0.003, # Higher learning rate
+        learning_rate='adaptive',
+        batch_size=64,
+        tol=1e-6                 # Lower tolerance for convergence
     )
     
     # Perform cross-validation
