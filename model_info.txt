@@ -1,0 +1,6 @@
+Best Model: ANN
+Test Accuracy: 0.7747 (77.47%)
+Training Accuracy: 0.7719
+
+Model saved at: c:/Users/aliom/Intro_to_ai/best_model.pkl
+Scaler saved at: c:/Users/aliom/Intro_to_ai/scaler.pkl

@@ -8,6 +8,7 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+import joblib
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -358,6 +359,41 @@ def visualize_results(results, y_test):
     print("Saved model_comparison.png")
 
 
+def save_best_model(models, results, scaler):
+    """Save the best performing model and scaler"""
+    print("\n" + "=" * 60)
+    print("Saving Best Model...")
+    print("=" * 60)
+    
+    # Find best model
+    best_model_name = max(results.items(), key=lambda x: x[1]['test_accuracy'])[0]
+    best_model = models[best_model_name]
+    best_acc = results[best_model_name]['test_accuracy']
+    
+    # Save model
+    model_filename = 'c:/Users/aliom/Intro_to_ai/best_model.pkl'
+    joblib.dump(best_model, model_filename)
+    print(f"\nSaved {best_model_name} to: {model_filename}")
+    print(f"Test accuracy: {best_acc:.4f} ({best_acc*100:.2f}%)")
+    
+    # Save scaler
+    scaler_filename = 'c:/Users/aliom/Intro_to_ai/scaler.pkl'
+    joblib.dump(scaler, scaler_filename)
+    print(f"Saved scaler to: {scaler_filename}")
+    
+    # Save model info
+    info_filename = 'c:/Users/aliom/Intro_to_ai/model_info.txt'
+    with open(info_filename, 'w') as f:
+        f.write(f"Best Model: {best_model_name}\n")
+        f.write(f"Test Accuracy: {best_acc:.4f} ({best_acc*100:.2f}%)\n")
+        f.write(f"Training Accuracy: {results[best_model_name]['train_accuracy']:.4f}\n")
+        f.write(f"\nModel saved at: {model_filename}\n")
+        f.write(f"Scaler saved at: {scaler_filename}\n")
+    print(f"Saved model info to: {info_filename}")
+    
+    print("\n" + "=" * 60)
+
+
 def print_final_results(results):
     """Print summary of results"""
     print("\n" + "=" * 60)
@@ -410,11 +446,18 @@ def main():
     
     # Visualize results
     visualize_results(results, y_test)
+    
+    # Save best model
+    save_best_model(models, results, scaler)
+    
     print_final_results(results)
     
     print("\nOutput files:")
     print("  - data_exploration.png")
     print("  - model_comparison.png")
+    print("  - best_model.pkl")
+    print("  - scaler.pkl")
+    print("  - model_info.txt")
 
 
 if __name__ == "__main__":
